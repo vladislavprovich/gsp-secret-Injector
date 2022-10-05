@@ -9,8 +9,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ForwardToPid forwards the signals provided to the child process pid. Logs are output to the `logrus` compatible
-// logger. Pass a nil value for the logger parameter if logging is not desired.
 func ForwardToPid(pid int, logger *logrus.Logger, signals ...os.Signal) {
 	log := nullLogger()
 	if logger != nil {

@@ -1,4 +1,4 @@
-module github.com/markeissler/injector
+module github.com/vladislavprovich/gsp-secret-injector
 
 go 1.15
 
