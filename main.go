@@ -16,12 +16,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/markeissler/injector/gcp"
-	"github.com/markeissler/injector/pkg/jsonutil"
-	"github.com/markeissler/injector/pkg/numericutil"
-	"github.com/markeissler/injector/pkg/signal"
-	"github.com/markeissler/injector/pkg/stringutil"
-	"github.com/markeissler/injector/template"
+	"github.com/vladislavprovich/gsp-secret-injector/gcp"
+	"github.com/vladislavprovich/gsp-secret-injector/pkg/jsonutil"
+	"github.com/vladislavprovich/gsp-secret-injector/pkg/numericutil"
+	"github.com/vladislavprovich/gsp-secret-injector/pkg/signal"
+	"github.com/vladislavprovich/gsp-secret-injector/pkg/stringutil"
+	"github.com/vladislavprovich/gsp-secret-injector/template"
 )
 
 const (
@@ -85,8 +85,6 @@ func main() {
 	}
 }
 
-// debug outputs version information, resolved inputs from cli options and environment variables to the specified
-// io.Writer.
 func debug(ctx *cli.Context, writer io.Writer) {
 	cli.ShowVersion(ctx)
 
@@ -110,21 +108,16 @@ func debug(ctx *cli.Context, writer io.Writer) {
 	}
 }
 
-// flags defines all of the option flags and corresponding environment variables (if applicable) for the app.
-// nolint:funlen
 func flags() []cli.Flag {
 	return []cli.Flag{
-		// key-file represents the path to a text file containing a JSON-formatted service account key for accessing the
-		// target secret manager document. It is an error to specify both `key-file` and `key-value`.
+
 		&cli.StringFlag{
 			Name:     "key-file",
 			Aliases:  []string{"k"},
 			Usage:    "Path to file containing JSON format service account key.",
 			Required: false,
 		},
-		// key-value is a text string containing a base64 encoded JSON-formatted service account key for accessing the
-		// target secret manager document. It is an error to specify both `key-file` and `key-value`. This value can be
-		// set via the cli or via an environment variable.
+
 		&cli.StringFlag{
 			Name:     "key-value",
 			Aliases:  []string{"K"},
@@ -132,73 +125,63 @@ func flags() []cli.Flag {
 			Required: false,
 			EnvVars:  []string{envVarInjectorKeyValue},
 		},
-		// format-shell outputs contents from the secret document as a list of exported shell key/value settings. A
-		// typical use case would be to write the output to a file and then `source` it elsewhere.
+
 		&cli.BoolFlag{
 			Name:     "format-shell",
 			Aliases:  []string{"e"},
 			Usage:    "Parse secret contents and convert to exported shell key/value settings.",
 			Required: false,
 		},
-		// format-shell-unexported outputs contents from the secret document as a list of shell key/value settings. A
-		// typical use case would be to write the output to a file and then `source` it elsewhere.
+
 		&cli.BoolFlag{
 			Name:     "format-shell-unexported",
 			Aliases:  []string{"u"},
 			Usage:    "Parse secret contents and convert to unexported shell key/value settings.",
 			Required: false,
 		},
-		// format-json outputs contents from the secret document as a standard JSON object.
+
 		&cli.BoolFlag{
 			Name:     "format-json",
 			Aliases:  []string{"j"},
 			Usage:    "Parse secret contents and convert from hJSON to JSON.",
 			Required: false,
 		},
-		// format-raw outputs contents from the secret document as returned by the secret manager. The format returned
-		// should be either hJSON (human JSON) or standard JSON.
+
 		&cli.BoolFlag{
 			Name:     "format-raw",
 			Aliases:  []string{"r"},
 			Usage:    "Output unparsed secret contents. This will likely be hJSON or JSON.",
 			Required: false,
 		},
-		// ignore would generally be used for deployments where the command line includes one or more secret retrieval
-		// options (for instance, in a container run command) and other values are intended to be pulled from env vars
-		// but could be missing while debugging locally. Specifying this option would
+
 		&cli.BoolFlag{
 			Name:     "ignore",
 			Aliases:  []string{"i"},
 			Usage:    "Ignore missing secret options.",
 			Required: false,
 		},
-		// ignore-preserve-env is different from supplying -i and -E in that specifying this option will only pass
-		// parent environment variables if secret retrieval options are missing (i.e. an incomplete set of options were
-		// specified). In contrast, specifying -E will always pass parent environment variables.
+
 		&cli.BoolFlag{
 			Name:     "ignore-preserve-env",
 			Aliases:  []string{"I"},
 			Usage:    "Ignore missing secret options, pass environment variables from parent OS into command shell.",
 			Required: false,
 		},
-		// preserve-env will pass through environment varisables from the parent to the child process (that is, the
-		// process that is specified as the command to run).
+
 		&cli.BoolFlag{
 			Name:     "preserve-env",
 			Aliases:  []string{"E"},
 			Usage:    "Pass environment variables from parent OS into command shell.",
 			Required: false,
 		},
-		// output-file sets the output destination which is stdout by default but can also be set to a file path. The
-		// "-" character, as the path, also identifies stdout as the destination.
+
 		&cli.StringFlag{
 			Name:     "output-file",
 			Aliases:  []string{"o"},
 			Usage:    `Write output to file. Default is stdout; passing "-" also represents stdout.`,
 			Required: false,
 		},
-		// project sets the GCP project id in which the secret manager document is stored. This value can be set via the
-		// cli or via an environment variable.
+
 		&cli.StringFlag{
 			Name:     "project",
 			Aliases:  []string{"p"},
@@ -206,8 +189,7 @@ func flags() []cli.Flag {
 			Required: false,
 			EnvVars:  []string{envVarInjectorProject},
 		},
-		// secret-name sets the GCP secret manager document name which identifies the specific document to retrieve.
-		// This value can be set via the cli or via an environment variable.
+
 		&cli.StringFlag{
 			Name:     "secret-name",
 			Usage:    "Name of secret containing environment variables and values.",
@@ -215,9 +197,7 @@ func flags() []cli.Flag {
 			Required: false,
 			EnvVars:  []string{envVarInjectorSecretName},
 		},
-		// secret-version set the version (revision) of the GCP secret manager document to retrieve. This setting is
-		// strictly option and the behavior is to retrieve the `latest` version of the named secret. Beware that setting
-		// a non-existent version will return an empty value (this is desired behavior).
+
 		&cli.StringFlag{
 			Name:     "secret-version",
 			Usage:    `Version of secret containing environment variables and values. ("latest" if not specified)`,
@@ -225,8 +205,7 @@ func flags() []cli.Flag {
 			Required: false,
 			EnvVars:  []string{envVarInjectorSecretVersion},
 		},
-		// debug enables the output of debugging information which is specifically helpful in identifying misconfigured
-		// and possibly conflicting settings.
+
 		&cli.BoolFlag{
 			Name:     "debug",
 			Usage:    "Show debug information.",
@@ -236,9 +215,6 @@ func flags() []cli.Flag {
 	}
 }
 
-// hasConflictingOptions checks for options that may conflict. A conflict exists when multiple options enable similar
-// functionality and/or when an option is configured via an environment variable while a conflicting option is set from
-// a cli option flag (if specifying both options via cli option flag, for instance, a conflict would also occur).
 func hasConflictingOptions(ctx *cli.Context) (bool, error) {
 	// Disallow conflicting format options.
 	if numericutil.BoolToInt(ctx.Bool("format-shell"))+numericutil.BoolToInt(ctx.Bool("format-shell-unexported"))+
@@ -246,12 +222,10 @@ func hasConflictingOptions(ctx *cli.Context) (bool, error) {
 		return true, errors.New("multiple output formats are not supported")
 	}
 
-	// Disallow conflicting environment pass through options.
 	if numericutil.BoolToInt(ctx.Bool("preserve-env"))+numericutil.BoolToInt(ctx.Bool("ignore-preserve-env")) > 1 {
 		return true, errors.New("multiple preserve environment options are not supported")
 	}
 
-	// Disallow conflicting key source options.
 	if numericutil.StringToBoolInt(ctx.String("key-file"))+numericutil.StringToBoolInt(ctx.String("key-value")) > 1 {
 		return true, errors.New("multiple key source formats are not supported")
 	}
@@ -259,21 +233,12 @@ func hasConflictingOptions(ctx *cli.Context) (bool, error) {
 	return false, nil
 }
 
-// hasMissingRetrievalOptions checks for an incomplete set of secret retrieval options. If at least one of the options
-// has been specified then all dependent options need to be specified as well.
-//
-// Dependencies:
-//	- (key-file or key-value) + project + secret-name
-//	- secret-version + (key-file or key-value) + project + secret-name
-//
-// The `secret-version` option cannot be specified without also specifying all other dependent options.
 func hasMissingRetrievalOptions(ctx *cli.Context) (bool, error) {
 	minimumCount := 3
 	if !stringutil.IsBlank(ctx.String("secret-version")) {
 		minimumCount++
 	}
 
-	// Disallow only some of the secret retrieval options to be defined.
 	actualCount := numericutil.BoolToInt(
 		numericutil.StringToBool(ctx.String("key-file")) || numericutil.StringToBool(ctx.String("key-value"))) +
 		numericutil.StringToBoolInt(ctx.String("project")) + numericutil.StringToBoolInt(ctx.String("secret-name")) +
@@ -286,33 +251,27 @@ func hasMissingRetrievalOptions(ctx *cli.Context) (bool, error) {
 	return false, nil
 }
 
-// run is the app main loop. Further branching will incur in this function to direct operations based on cli options.
 func run(ctx *cli.Context) error {
 	var buf bytes.Buffer
 
-	// Output debug information and continue.
 	if ctx.Bool("debug") {
 		debug(ctx, os.Stdout)
 	}
 
-	// Make sure potentially conflicting options are not set.
 	if bad, err := hasConflictingOptions(ctx); bad {
 		return err
 	}
 
-	// Make sure all required options are set if fetching a secret manager document.
 	if bad, err := hasMissingRetrievalOptions(ctx); bad {
 		return err
 	}
 
-	// Fetch the secret manager document content and copy to a buffer.
 	if wantsToPullSecret(ctx) {
 		if err := gcp.FetchSecretDocument(ctx, &buf); err != nil && !wantsToIgnorePullSecretFailures(ctx) {
 			return err
 		}
 	}
 
-	// Set the output file to either stdout (default) or an actual file.
 	outputFile := os.Stdout
 	if !stringutil.IsBlank(ctx.String("output-file")) && ctx.String("output-file") != "-" {
 		var err error
@@ -342,7 +301,6 @@ func run(ctx *cli.Context) error {
 	return nil
 }
 
-// runCommand runs the intended command in the default user shell with injected environment variables.
 func runCommand(ctx *cli.Context, buf *bytes.Buffer, commandWithArgs []string) error {
 	var command string
 	var args []string
@@ -357,8 +315,6 @@ func runCommand(ctx *cli.Context, buf *bytes.Buffer, commandWithArgs []string) e
 		args = commandWithArgs[1:]
 	}
 
-	// Define an exec command (with arguments), setup environment variables (passing through current environment
-	// variables only if enabled), and rebind its stdout and stdin to the respective os streams.
 	cmd := exec.Command(command, args...)
 	cmd.Env = []string{}
 	if ctx.Bool("preserve-env") || (ctx.Bool("ignore-preserve-env") && buf.Len() == 0) {
@@ -367,7 +323,6 @@ func runCommand(ctx *cli.Context, buf *bytes.Buffer, commandWithArgs []string) e
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Create a dedicated pidgroup used to forward signals to the main process and its children.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	var err error
@@ -389,7 +344,6 @@ func runCommand(ctx *cli.Context, buf *bytes.Buffer, commandWithArgs []string) e
 		return err
 	}
 
-	// Trap signals and forward to the child process.
 	signal.ForwardToPid(cmd.Process.Pid, log, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 
 	err = cmd.Wait()
@@ -401,8 +355,6 @@ func runCommand(ctx *cli.Context, buf *bytes.Buffer, commandWithArgs []string) e
 	return nil
 }
 
-// convertMapToKeyValueList converts the parsed secret manager document environment variables to an array of key/value
-// strings. This format is suitable for input to the `cmd.Env` string array value.
 func convertMapToKeyValueList(ctx *cli.Context, data map[string]interface{}) ([]string, error) {
 	if ctx == nil {
 		return []string{}, errors.New("invalid context")
@@ -421,20 +373,14 @@ func convertMapToKeyValueList(ctx *cli.Context, data map[string]interface{}) ([]
 	return jsonutil.Flatten(jsonBytes, "environment", unquotedOutputFormatter), nil
 }
 
-// outputShellExported writes the secret manager document contents as exported shell key/value variables to the
-// specified io.Writer.
 func outputShellExported(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error {
 	return outputShell(ctx, buffer, writer, exportedOutputFormatter)
 }
 
-// outputShellUnexported writes the secret manager document contents as unexported shell key/value variables to the
-// specified io.Writer.
 func outputShellUnexported(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error {
 	return outputShell(ctx, buffer, writer, unexportedOutputFormatter)
 }
 
-// outputShell writes the secret manager document contents as shell environment variables, formatted with the given
-// line formatter string, to the specified io.Writer.
 func outputShell(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer, formatter string) error {
 	if ctx == nil {
 		return errors.New("invalid context")
@@ -464,7 +410,6 @@ func outputShell(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer, forma
 	return nil
 }
 
-// outputJSON write the secret manager document contents as JSON to the specified io.Writer.
 func outputJSON(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error {
 	if ctx == nil {
 		log.Fatal(errors.New("invalid context"))
@@ -500,7 +445,6 @@ func outputJSON(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error 
 	return nil
 }
 
-// outputRaw write the raw secret manager document contents to the specified io.Writer.
 func outputRaw(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error {
 	if ctx == nil {
 		return errors.New("invalid context")
@@ -523,7 +467,6 @@ func outputRaw(ctx *cli.Context, buffer *bytes.Buffer, writer io.Writer) error {
 	return nil
 }
 
-// parseHJSON parses the raw secret manager document contents in JSON or HJSON content into a map.
 func parseHJSON(ctx *cli.Context, buffer *bytes.Buffer) (map[string]interface{}, error) {
 	data := make(map[string]interface{})
 
@@ -542,14 +485,11 @@ func parseHJSON(ctx *cli.Context, buffer *bytes.Buffer) (map[string]interface{},
 	return data, nil
 }
 
-// wantsToPullSecret checks if supplied options indicate the user wants to retrieve a secret manager document.
 func wantsToPullSecret(ctx *cli.Context) bool {
 	// We only need to check if one of the options that would be needed to pull a secret is defined.
 	return numericutil.StringToBool(ctx.String("project"))
 }
 
-// wantsToIgnorePullSecretFailures checks if supplied options indicate the user wants to ignore any errors encountered
-// when attempting to retrieve a secret manager document.
 func wantsToIgnorePullSecretFailures(ctx *cli.Context) bool {
 	return ctx.Bool("ignore") || ctx.Bool("ignore-preserve-env")
 }

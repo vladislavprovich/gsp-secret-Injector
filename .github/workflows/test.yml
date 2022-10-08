@@ -1,4 +1,5 @@
 name: Test
+
 on:
   push:
     branches:
@@ -28,39 +29,50 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Lint
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run linter
         run: make lint
 
-      - name: Test
+      - name: Run tests
         run: make test
 
-      - name: Install Node
-        uses: actions/setup-node@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-            node-version: '16'
+          node-version: '16'
 
-      - name: Test Signal Forwarding (Linux)
-        if: runner.os == 'Linux'
-        run: |          
-          make build/linux_amd64
-          cp .bin/inject test/signals/bin
-          cd test/signals
-          yarn install --frozen-lockfile
-          yarn build
-          yarn start
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: test/signals/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('test/signals/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-      - name: Test Signal Forwarding (macOS)
-        if: runner.os == 'macOS'
+      - name: Build and Test Signal Forwarding
         run: |
-          make build/darwin_amd64
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            make build/linux_amd64
+          else
+            make build/darwin_amd64
+          fi
           cp .bin/inject test/signals/bin
           cd test/signals
           yarn install --frozen-lockfile
